@@ -1,0 +1,61 @@
+name: CI
+
+# Every push on every branch, plus pull requests. The whole suite runs in well
+# under a minute, so there is nothing to gain from narrowing it.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A newer push supersedes an in-flight run for the same ref.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly what
+      # package-lock.json pins and fails if the lockfile is out of date.
+      - run: npm ci
+
+      - name: Formatting
+        run: npm run format:check
+
+      # Type-aware linting, so this also fails on a type error — but `compile`
+      # stays separate because it is what produces out/ for the tests.
+      - name: Lint
+        run: npm run lint
+
+      # Naming and endpoint invariants of the published artifact: one setting
+      # prefix, vendor in step with the extension name, no endpoint shipped as a
+      # default, and no host outside documentation or loopback in shipped files.
+      - name: Release hygiene
+        run: npm run hygiene
+
+      # `pretest` compiles first.
+      - name: Tests
+        run: npm test
+
+      # Proves the VSIX still builds, and keeps it available for 14 days so a
+      # branch can be tried out without cutting a release.
+      - name: Package
+        run: npm run package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ github.sha }}
+          path: '*.vsix'
+          retention-days: 14
+          if-no-files-found: error

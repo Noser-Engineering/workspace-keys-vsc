@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="60 40 220 220" role="img" aria-label="Workspace LLM">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#FFB24D"/>
+			<stop offset="0.55" stop-color="#FA9400"/>
+			<stop offset="1" stop-color="#B36A00"/>
+		</linearGradient>
+		<linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#FFFFFF"/>
+			<stop offset="1" stop-color="#FFF1DC"/>
+		</linearGradient>
+		<clipPath id="square">
+			<rect x="60" y="40" width="220" height="220" rx="52"/>
+		</clipPath>
+	</defs>
+
+	<rect x="60" y="40" width="220" height="220" rx="52" fill="url(#bg)"/>
+	<g clip-path="url(#square)">
+		<circle cx="120" cy="80" r="160" fill="#ffffff" opacity="0.06"/>
+		<circle cx="250" cy="240" r="130" fill="#000000" opacity="0.10"/>
+	</g>
+
+	<path d="M138 108 q-28 0 -28 28 v11 q0 15 -17 17 q17 2 17 17 v11 q0 28 28 28"
+		fill="none" stroke="url(#accent)" stroke-width="10" stroke-linecap="round"/>
+	<path d="M202 108 q28 0 28 28 v11 q0 15 17 17 q-17 2 -17 17 v11 q0 28 -28 28"
+		fill="none" stroke="url(#accent)" stroke-width="10" stroke-linecap="round"/>
+
+	<circle cx="170" cy="144" r="21" fill="#ffffff"/>
+	<path d="M161 161 h18 l-4 36 h-10 z" fill="#ffffff"/>
+	<circle cx="170" cy="144" r="9.5" fill="#FA9400"/>
+</svg>

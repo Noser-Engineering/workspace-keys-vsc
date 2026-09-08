@@ -1,0 +1,24 @@
+# Sources and build metadata
+src/**
+tsconfig.json
+**/*.ts
+**/*.map
+
+# Tests and dev tooling never belong in the VSIX
+out/test/**
+scripts/**
+AGENTS.md
+.vscode/**
+.claude/**
+.github/**
+eslint.config.js
+.prettierrc.json
+.prettierignore
+
+# Only the rendered PNG ships; the SVGs are the build source.
+# If a viewsContainer is ever added, media/icon-mono.svg has to ship with it.
+media/*.svg
+
+.gitignore
+.vscodeignore
+*.vsix

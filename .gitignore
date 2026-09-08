@@ -1,0 +1,8 @@
+node_modules/
+out/
+*.vsix
+release-notes.md
+
+# Never commit workspace-local provider configuration: it may contain a literal
+# key, and the scratch folders used for manual testing point at a local mock.
+.vscode/settings.json

@@ -1,0 +1,100 @@
+name: Release
+
+# Tag push cuts the release:
+#
+#   npm version patch          # bumps package.json and tags
+#   git push --follow-tags
+#
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  # Needed to create the release and attach the VSIX to it.
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # A tag that disagrees with package.json would publish a VSIX whose version
+      # is not the one people think they downloaded. Checked before anything is
+      # built, because a pushed tag cannot be corrected without deleting the
+      # release it produced.
+      - name: Resolve and verify version
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          name="$(node -p "require('./package.json').name")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME implies version $tag, but package.json says $version."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "vsix=$name-$version.vsix" >> "$GITHUB_OUTPUT"
+
+      # The same gates as CI: a tag must not ship what a branch could not merge.
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Release hygiene
+        run: npm run hygiene
+
+      - name: Tests
+        run: npm test
+
+      - name: Package
+        run: npm run package
+
+      - name: Release notes
+        env:
+          VSIX: ${{ steps.version.outputs.vsix }}
+        run: |
+          cat > release-notes.md <<'NOTES'
+          ## Install
+
+          Download the `.vsix` asset below, then either
+
+          - **VS Code**: Extensions view → `...` menu → **Install from VSIX…**, or
+          - **terminal**:
+
+          ```
+          code --install-extension VSIX_NAME
+          ```
+
+          Reload the window afterwards.
+
+          ## First run
+
+          Run **Workspace Keys: Set or Update API Key for Current Workspace** once
+          per project. On a fresh installation it asks for the provider endpoint
+          first — that goes to your user settings and applies to every workspace.
+          The key is stored in SecretStorage for that workspace only and is never
+          written to any settings file.
+          NOTES
+          sed -i "s/VSIX_NAME/$VSIX/" release-notes.md
+
+      # `gh` is preinstalled on the runner, so this needs no third-party action —
+      # one less dependency in the chain that produces a binary people install.
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VSIX: ${{ steps.version.outputs.vsix }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$VSIX" \
+            --title "Workspace Keys ${{ steps.version.outputs.version }}" \
+            --notes-file release-notes.md \
+            --verify-tag

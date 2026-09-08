@@ -1,0 +1,249 @@
+{
+	"name": "workspace-keys",
+	"displayName": "Workspace Keys (BYOK)",
+	"description": "OpenAI-compatible chat models for VS Code, with API key, base URL and model list scoped per workspace.",
+	"version": "0.1.0",
+	"publisher": "NoserEngineering",
+	"author": "Noser Engineering AG",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Noser-Engineering/workspace-keys-vsc.git"
+	},
+	"homepage": "https://github.com/Noser-Engineering/workspace-keys-vsc#readme",
+	"bugs": {
+		"url": "https://github.com/Noser-Engineering/workspace-keys-vsc/issues"
+	},
+	"engines": {
+		"vscode": "^1.106.0"
+	},
+	"categories": [
+		"AI",
+		"Chat"
+	],
+	"keywords": [
+		"byok",
+		"copilot",
+		"openai-compatible",
+		"language model",
+		"api key",
+		"workspace"
+	],
+	"icon": "media/icon.png",
+	"main": "./out/extension.js",
+	"capabilities": {
+		"untrustedWorkspaces": {
+			"supported": "limited",
+			"description": "In an untrusted workspace no workspace settings are read and no network requests are made, so no models are contributed.",
+			"restrictedConfigurations": [
+				"workspaceKeys.providers",
+				"workspaceKeys.requestDefaults"
+			]
+		},
+		"virtualWorkspaces": {
+			"supported": true,
+			"description": "Providers and keys resolve from settings and SecretStorage, so no local filesystem access is required."
+		}
+	},
+	"contributes": {
+		"languageModelChatProviders": [
+			{
+				"vendor": "workspace-keys",
+				"displayName": "Workspace Keys",
+				"managementCommand": "workspaceKeys.manage"
+			}
+		],
+		"commands": [
+			{
+				"command": "workspaceKeys.setWorkspaceKey",
+				"title": "Set or Update API Key for Current Workspace",
+				"category": "Workspace Keys"
+			},
+			{
+				"command": "workspaceKeys.addProvider",
+				"title": "Add Provider Endpoint",
+				"category": "Workspace Keys"
+			},
+			{
+				"command": "workspaceKeys.editProviders",
+				"title": "Edit Providers in User Settings",
+				"category": "Workspace Keys"
+			},
+			{
+				"command": "workspaceKeys.manageStoredKeys",
+				"title": "Manage Stored API Keys",
+				"category": "Workspace Keys"
+			},
+			{
+				"command": "workspaceKeys.manage",
+				"title": "Manage",
+				"category": "Workspace Keys"
+			}
+		],
+		"configuration": {
+			"title": "Workspace Keys (BYOK)",
+			"properties": {
+				"workspaceKeys.providers": {
+					"type": "array",
+					"scope": "resource",
+					"default": [],
+					"markdownDescription": "OpenAI-compatible endpoints. No endpoint ships with the extension: add the first one with **Workspace Keys: Add Provider Endpoint**, which writes it to your **user settings** so every workspace inherits it.\n\nA single workspace can still override the whole list in `.vscode/settings.json`. Note that VS Code replaces array settings rather than merging them, so a workspace value replaces your user list entirely — and a workspace-declared endpoint has to be approved before anything is sent to it.\n\nGive each workspace its own key with **Workspace Keys: Set or Update API Key for Current Workspace** (SecretStorage). The optional `apiKey` field below acts as the fallback for workspaces that have none — prefer `${env:NAME}` over a literal value.",
+					"items": {
+						"type": "object",
+						"required": [
+							"id",
+							"baseUrl"
+						],
+						"properties": {
+							"id": {
+								"type": "string",
+								"description": "Stable identifier for this provider. Used as part of the SecretStorage key, so changing it detaches a stored key. Must not contain '/'."
+							},
+							"label": {
+								"type": "string",
+								"description": "Human-readable name shown next to the models in the picker."
+							},
+							"baseUrl": {
+								"type": "string",
+								"description": "Base URL of the OpenAI-compatible API, for example https://api.example.com/v1. Must be https:// — cleartext http:// is only accepted for loopback hosts and only when the development setting 'Allow Insecure Loopback' is enabled."
+							},
+							"apiKey": {
+								"type": "string",
+								"markdownDescription": "Optional key source. Prefer `${env:NAME}` over a literal key; a literal value is stored in plain text and must not be committed."
+							},
+							"models": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								},
+								"description": "Optional explicit model allowlist. If omitted, models are discovered from GET {baseUrl}/models."
+							},
+							"headers": {
+								"type": "object",
+								"additionalProperties": {
+									"type": "string"
+								},
+								"description": "Additional HTTP headers sent with every request to this provider. Authentication, routing and framing headers (Authorization, Cookie, Host, Content-Type, Accept, …) are ignored and cannot be overridden."
+							}
+						}
+					}
+				},
+				"workspaceKeys.requestDefaults": {
+					"type": "object",
+					"scope": "resource",
+					"default": {},
+					"description": "Default request parameters passed through to the provider.",
+					"properties": {
+						"temperature": {
+							"type": "number"
+						},
+						"top_p": {
+							"type": "number"
+						},
+						"max_tokens": {
+							"type": "number"
+						}
+					},
+					"additionalProperties": true
+				},
+				"workspaceKeys.multiRootResolution": {
+					"type": "string",
+					"scope": "window",
+					"enum": [
+						"activeEditor",
+						"firstFolder"
+					],
+					"default": "activeEditor",
+					"enumDescriptions": [
+						"Use the workspace folder of the active editor, falling back to the first folder.",
+						"Always use the first workspace folder."
+					],
+					"description": "How to pick the workspace folder whose configuration applies, in a multi-root workspace."
+				},
+				"workspaceKeys.modelRules": {
+					"type": "array",
+					"scope": "application",
+					"default": [],
+					"markdownDescription": "Capability rules for discovered models, matched by glob against the model id. Applied after the built-in defaults, so these win. Broader patterns must come before narrower ones.\n\nUser-scoped on purpose: a workspace cannot override it and therefore cannot claim a capability a model does not have.",
+					"items": {
+						"type": "object",
+						"required": [
+							"match"
+						],
+						"properties": {
+							"match": {
+								"type": "string",
+								"description": "Glob matched against the model id. Supports * and ?."
+							},
+							"toolCalling": {
+								"type": [
+									"boolean",
+									"number"
+								],
+								"description": "Whether the model supports tool calling. A number sets the maximum number of tools per request. Required for agent mode."
+							},
+							"imageInput": {
+								"type": "boolean",
+								"description": "Whether the model accepts image input."
+							},
+							"maxInputTokens": {
+								"type": "number"
+							},
+							"maxOutputTokens": {
+								"type": "number"
+							},
+							"hide": {
+								"type": "boolean",
+								"description": "Hide models matching this glob."
+							}
+						}
+					}
+				},
+				"workspaceKeys.hideUnknownModels": {
+					"type": "boolean",
+					"scope": "application",
+					"default": true,
+					"description": "Hide discovered models that no rule matches. When disabled, unmatched models are listed with conservative fallback capabilities and no tool calling."
+				},
+				"workspaceKeys.allowInsecureLoopback": {
+					"type": "boolean",
+					"scope": "application",
+					"default": false,
+					"markdownDescription": "**Development only.** Allow cleartext `http://` endpoints on loopback hosts (`localhost`, `127.0.0.1`, `::1`), so a local mock provider can be used.\n\nUser-scoped on purpose: a workspace cannot enable it and therefore cannot downgrade the transport of an endpoint it declares. Remote `http://` endpoints stay rejected either way."
+				}
+			}
+		},
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "workspaceKeys.manage",
+					"when": "false"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"pretest": "npm run compile",
+		"test": "node --test \"out/test/*.test.js\"",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"format": "prettier --write \"src/**/*.ts\" \"*.json\" \".vscode/*.json\"",
+		"format:check": "prettier --check \"src/**/*.ts\" \"*.json\" \".vscode/*.json\"",
+		"hygiene": "node scripts/check-hygiene.js",
+		"check": "npm run format:check && npm run lint && npm run hygiene && npm test",
+		"icon": "node scripts/render-icon.js",
+		"package": "npm run compile && npm run icon && vsce package"
+	},
+	"devDependencies": {
+		"@resvg/resvg-js": "^2.6.2",
+		"@types/node": "^22",
+		"@types/vscode": "^1.106.0",
+		"@vscode/vsce": "^3.9.2",
+		"eslint": "^9.39.5",
+		"prettier": "^3.9.6",
+		"typescript": "^5.9.2",
+		"typescript-eslint": "^8.67.0"
+	}
+}

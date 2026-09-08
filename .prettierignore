@@ -1,0 +1,9 @@
+out/
+node_modules/
+package-lock.json
+media/*.svg
+*.vsix
+
+# Prose is reviewed by reading it, not by a formatter. Prettier would also pad
+# every markdown table cell, which turns a one-word edit into a full-table diff.
+*.md

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="410 92 140 140" role="img" aria-label="Workspace LLM">
+	<!--
+		Monochrome single-line variant. Strokes use currentColor so VS Code can
+		theme it; the viewBox is centred on the glyph (480, 162) with padding,
+		and the preview frame from the source artwork is intentionally omitted.
+	-->
+	<g fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round">
+		<path d="M452 118 q-22 0 -22 22 v9 q0 12 -13 13 q13 1 13 13 v9 q0 22 22 22"/>
+		<path d="M508 118 q22 0 22 22 v9 q0 12 13 13 q-13 1 -13 13 v9 q0 22 -22 22"/>
+		<circle cx="480" cy="148" r="15" stroke-linecap="butt"/>
+		<line x1="480" y1="161" x2="480" y2="188"/>
+	</g>
+</svg>
