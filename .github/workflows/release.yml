@@ -64,7 +64,7 @@ jobs:
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
           VSIX: ${{ steps.version.outputs.vsix }}
-        run: vsce publish --packagePath "$VSIX"
+        run: npx --no-install vsce publish --packagePath "$VSIX"
 
       - name: Release notes
         env:
