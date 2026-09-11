@@ -1,0 +1,2 @@
+# Keep text files stable across platforms and formatter runs.
+* text=auto eol=lf

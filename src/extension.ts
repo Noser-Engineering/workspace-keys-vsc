@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ConfigReader, SECTION } from './config/workspaceConfig';
+import { initializeByokUtilityModel } from './config/byokUtilityModel';
 import { KeyResolver } from './auth/keyResolver';
 import { KeyRegistry } from './auth/keyRegistry';
 import { isOwnSecret } from './auth/secretKey';
@@ -18,6 +19,10 @@ const REFRESH_DEBOUNCE_MS = 250;
 export function activate(context: vscode.ExtensionContext): void {
 	createLog(context);
 	log().info(`Workspace Keys activated (trusted: ${vscode.workspace.isTrusted}).`);
+	const chatConfiguration = vscode.workspace.getConfiguration('chat');
+	void initializeByokUtilityModel(context.globalState, chatConfiguration.inspect<string>('byokUtilityModelDefault')?.globalValue, () =>
+		chatConfiguration.update('byokUtilityModelDefault', 'mainAgent', vscode.ConfigurationTarget.Global),
+	);
 
 	const config = new ConfigReader();
 	// Not registered for Settings Sync: the index describes secrets of *this*

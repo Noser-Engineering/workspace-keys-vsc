@@ -2,7 +2,7 @@
 	"name": "workspace-keys",
 	"displayName": "Workspace Keys (BYOK)",
 	"description": "OpenAI-compatible chat models for VS Code, with API key, base URL and model list scoped per workspace.",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"publisher": "NoserEngineering",
 	"author": "Noser Engineering AG",
 	"license": "MIT",

@@ -6,6 +6,16 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-11
+
+### Added
+
+- On its first activation after installation, the extension sets the global
+  `chat.byokUtilityModelDefault` setting to `mainAgent`. An existing global
+  value is preserved.
+
+## [0.1.1] - 2026-09-11
+
 ### Added
 
 - OpenAI-compatible chat models contributed to VS Code, with the API key, base
