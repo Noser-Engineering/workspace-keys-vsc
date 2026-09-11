@@ -313,8 +313,10 @@ full-table diff.
 release hygiene, tests, and a VSIX build kept as an artifact for 14 days, so a
 branch can be tried out without cutting a release.
 
-`.github/workflows/release.yml` publishes a GitHub release when a `v*` tag is
-pushed, with the VSIX attached and install instructions in the notes:
+`.github/workflows/release.yml` publishes the VSIX to the Visual Studio
+Marketplace and creates a GitHub release when a `v*` tag is pushed. The GitHub
+release includes the VSIX as an alternative installation method and links to the
+Marketplace:
 
 ```bash
 npm version patch        # bumps package.json and creates the tag
@@ -324,8 +326,8 @@ git push --follow-tags
 The workflow refuses to release if the tag and `package.json` version disagree —
 a pushed tag cannot be corrected without deleting the release it produced.
 
-GitHub is the only host for this project; there is no second CI configuration to
-keep in step.
+GitHub is the only automation host for this project; publishing to the
+Marketplace does not require a second CI configuration.
 
 ## Testing it by hand
 

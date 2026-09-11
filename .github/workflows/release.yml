@@ -59,6 +59,13 @@ jobs:
       - name: Package
         run: npm run package
 
+      # VSCE reads this token from the environment; it is never written into the VSIX.
+      - name: Publish to Visual Studio Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSIX: ${{ steps.version.outputs.vsix }}
+        run: vsce publish --packagePath "$VSIX"
+
       - name: Release notes
         env:
           VSIX: ${{ steps.version.outputs.vsix }}
@@ -66,7 +73,8 @@ jobs:
           cat > release-notes.md <<'NOTES'
           ## Install
 
-          Download the `.vsix` asset below, then either
+          Install from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=NoserEngineering.workspace-keys),
+          or download the `.vsix` asset below and either
 
           - **VS Code**: Extensions view → `...` menu → **Install from VSIX…**, or
           - **terminal**:
