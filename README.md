@@ -166,9 +166,24 @@ and run terminals. Workspace Trust already gates that; this is the second layer.
 
 Once providers live in user settings, both end up in the same file anyway.
 
-An OpenAI-compatible `/models` endpoint reports ids but no capabilities, so
-capabilities come from glob rules. Built-in defaults cover the common families;
-user rules are applied afterwards and win:
+An OpenAI-compatible `/models` endpoint reports ids but no capabilities. For
+endpoints declared in user settings, the extension also tries LiteLLM's
+`/model/info` endpoint. It uses `model_name` to match only ids visible in
+`/models`, reads `mode` (`chat` and `responses` can serve chat completions),
+`supports_function_calling`, `supports_vision`, `max_input_tokens`, and
+`max_output_tokens`, and hides reported non-chat modes. If that endpoint is
+unavailable, built-in glob rules cover common families as before. Models
+without a matching rule or usable metadata are still governed by
+`hideUnknownModels`. Workspace-declared endpoints cannot supply capabilities:
+the capability metadata comes from user-declared endpoints only.
+
+Fallback rules include GPT-6 Astra/Sol/Luna and Claude Opus 5.5, Fable 5/5.1,
+and Sonnet 5. Neuron's GPT-6 Sol and Luna were verified to return tool calls
+through Chat Completions without `reasoning_effort`, so their fallback rules
+enable tool use. LiteLLM metadata can override these estimates.
+
+Built-in rules are applied first, then LiteLLM metadata, then user rules, which
+win:
 
 ```jsonc
 "workspaceKeys.modelRules": [

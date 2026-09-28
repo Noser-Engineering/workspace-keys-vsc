@@ -7,6 +7,7 @@ export interface MockOptions {
 	/** Answer with a plain JSON body instead of an event stream. */
 	nonStreaming?: boolean;
 	models?: string[];
+	modelInfo?: unknown;
 	/** Fixed port for the manual two-window test; tests use an ephemeral one. */
 	port?: number;
 }
@@ -38,6 +39,12 @@ export async function startMockProvider(options: MockOptions = {}): Promise<Mock
 				authorization: request.headers.authorization,
 				body: raw ? JSON.parse(raw) : undefined,
 			});
+
+			if (request.url?.endsWith('/model/info')) {
+				response.writeHead(200, { 'content-type': 'application/json' });
+				response.end(JSON.stringify(options.modelInfo ?? { data: [] }));
+				return;
+			}
 
 			if (request.url?.endsWith('/models')) {
 				response.writeHead(200, { 'content-type': 'application/json' });

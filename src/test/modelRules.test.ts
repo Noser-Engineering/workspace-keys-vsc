@@ -44,6 +44,26 @@ describe('resolveCapabilities', () => {
 
 		const plainGpt4 = resolveCapabilities('gpt-4-turbo', ruleChain([]));
 		assert.equal(plainGpt4.imageInput, false);
+
+		for (const id of ['claude-opus-5-5', 'claude-fable-5', 'claude-fable-5-1', 'claude-sonnet-5']) {
+			const caps = resolveCapabilities(id, ruleChain([]));
+			assert.equal(caps.toolCalling, true, id);
+			assert.equal(caps.imageInput, true, id);
+			assert.equal(caps.maxInputTokens, 872000, id);
+			assert.equal(caps.maxOutputTokens, 128000, id);
+		}
+	});
+
+	test('advertises tool calling for verified GPT-6 models', () => {
+		for (const id of ['gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna']) {
+			const caps = resolveCapabilities(id, ruleChain([]));
+			assert.equal(caps.matched, true, id);
+			assert.equal(caps.imageInput, true, id);
+			assert.equal(caps.maxInputTokens, 922000, id);
+			assert.equal(caps.maxOutputTokens, 128000, id);
+			assert.equal(caps.toolCalling, true, id);
+		}
+		assert.equal(resolveCapabilities('gpt-6-unknown', ruleChain([])).matched, false);
 	});
 
 	test('user rules override built-in rules', () => {

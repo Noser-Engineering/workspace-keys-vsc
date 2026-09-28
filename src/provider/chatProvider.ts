@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { ProviderConfig, WithheldKey } from '../types';
+import type { ModelRule, ProviderConfig, WithheldKey } from '../types';
 import { isResolvedKey } from '../types';
 import { ConfigReader, type ProviderOrigin, type WorkspaceScope } from '../config/workspaceConfig';
 import { type HideReason, hideReason, resolveCapabilities, ruleChain } from '../config/modelRules';
@@ -105,7 +105,7 @@ export class WorkspaceKeysChatProvider implements vscode.LanguageModelChatProvid
 			log().warn(problem);
 		}
 
-		const rules = ruleChain(this.config.readModelRules());
+		const userRules = this.config.readModelRules();
 		const hideUnknown = this.config.hideUnknownModels();
 
 		// One misconfigured provider must not remove every other provider's models,
@@ -113,7 +113,7 @@ export class WorkspaceKeysChatProvider implements vscode.LanguageModelChatProvid
 		const perProvider = await Promise.all(
 			providers.map(async (provider) => {
 				try {
-					return await this.modelsFor(provider, scope, rules, hideUnknown, options.silent, origin, token);
+					return await this.modelsFor(provider, scope, userRules, hideUnknown, options.silent, origin, token);
 				} catch (error) {
 					log().error(`Provider "${provider.id}" could not be resolved: ${describe(error, undefined)}`);
 					return { models: [], status: 'error' as const };
@@ -145,7 +145,7 @@ export class WorkspaceKeysChatProvider implements vscode.LanguageModelChatProvid
 	private async modelsFor(
 		provider: ProviderConfig,
 		scope: WorkspaceScope,
-		rules: ReturnType<typeof ruleChain>,
+		userRules: readonly ModelRule[],
 		hideUnknown: boolean,
 		silent: boolean,
 		origin: ProviderOrigin,
@@ -188,9 +188,9 @@ export class WorkspaceKeysChatProvider implements vscode.LanguageModelChatProvid
 			return { models: [], status: 'not-approved' };
 		}
 
-		let modelIds: string[];
+		let models: Awaited<ReturnType<ModelCatalog['list']>>;
 		try {
-			modelIds = await this.catalog.list(provider, key.key, token);
+			models = await this.catalog.list(provider, key.key, token, origin === 'user');
 		} catch (error) {
 			log().error(`Model discovery failed for provider "${provider.id}": ${describe(error, key.key)}`);
 			return { models: [], status: 'error' };
@@ -198,9 +198,12 @@ export class WorkspaceKeysChatProvider implements vscode.LanguageModelChatProvid
 
 		const information: vscode.LanguageModelChatInformation[] = [];
 		const hidden: Record<HideReason, string[]> = { rule: [], unknown: [] };
+		const builtInRules = ruleChain([]);
+		const modelIds = models.ids;
 
 		for (const modelId of modelIds) {
-			const capabilities = resolveCapabilities(modelId, rules);
+			const metadata = models.infoRules.get(modelId);
+			const capabilities = resolveCapabilities(modelId, [...builtInRules, ...(metadata ? [metadata] : []), ...userRules]);
 			const reason = hideReason(capabilities, hideUnknown);
 			if (reason) {
 				hidden[reason].push(modelId);

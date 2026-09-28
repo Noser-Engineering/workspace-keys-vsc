@@ -20,12 +20,18 @@ export const DEFAULT_MODEL_RULES: readonly ModelRule[] = [
 	{ match: 'gpt-4o*', toolCalling: true, imageInput: true, maxInputTokens: 128000, maxOutputTokens: 16384 },
 	{ match: 'gpt-4.1*', toolCalling: true, imageInput: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
 	{ match: 'gpt-5*', toolCalling: true, imageInput: true, maxInputTokens: 272000, maxOutputTokens: 128000 },
+	{ match: 'gpt-6-astra*', toolCalling: true, imageInput: true, maxInputTokens: 922000, maxOutputTokens: 128000 },
+	{ match: 'gpt-6-sol*', toolCalling: true, imageInput: true, maxInputTokens: 922000, maxOutputTokens: 128000 },
+	{ match: 'gpt-6-luna*', toolCalling: true, imageInput: true, maxInputTokens: 922000, maxOutputTokens: 128000 },
 	{ match: 'o1*', toolCalling: true, imageInput: true, maxInputTokens: 200000, maxOutputTokens: 100000 },
 	{ match: 'o3*', toolCalling: true, imageInput: true, maxInputTokens: 200000, maxOutputTokens: 100000 },
 	{ match: 'o4*', toolCalling: true, imageInput: true, maxInputTokens: 200000, maxOutputTokens: 100000 },
 
 	// Anthropic, via an OpenAI-compatible gateway
 	{ match: 'claude-*', toolCalling: true, imageInput: true, maxInputTokens: 200000, maxOutputTokens: 32000 },
+	{ match: 'claude-opus-5-5*', toolCalling: true, imageInput: true, maxInputTokens: 872000, maxOutputTokens: 128000 },
+	{ match: 'claude-fable-5*', toolCalling: true, imageInput: true, maxInputTokens: 872000, maxOutputTokens: 128000 },
+	{ match: 'claude-sonnet-5*', toolCalling: true, imageInput: true, maxInputTokens: 872000, maxOutputTokens: 128000 },
 
 	// Open-weight families commonly served by vLLM / Ollama / TGI
 	{ match: 'qwen*', toolCalling: true, imageInput: false, maxInputTokens: 128000, maxOutputTokens: 8192 },

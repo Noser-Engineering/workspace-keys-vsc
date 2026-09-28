@@ -4,6 +4,7 @@ import { startMockProvider, type MockProvider } from './mockProvider';
 import { ChatCompletionAccumulator, SseDecoder, StreamEvent, eventsFromCompletion } from '../provider/stream';
 import { HttpError, parseRetryAfter, withRetry } from '../util/backoff';
 import { resolveCapabilities, ruleChain, shouldHide } from '../config/modelRules';
+import { modelInfoRules } from '../provider/modelInfo';
 
 /**
  * Mirrors `WorkspaceKeysChatProvider.consume`, minus the `vscode` types.
@@ -66,6 +67,46 @@ describe('against a live OpenAI-compatible endpoint', () => {
 		const caps = resolveCapabilities('internal-secret-model', rules);
 		assert.equal(shouldHide(caps, true), false);
 		assert.equal(caps.toolCalling, true);
+	});
+
+	test('enriches only discovered models with LiteLLM metadata over real sockets', async () => {
+		const server = await startMockProvider({
+			models: ['gpt-6-sol', 'vector-search'],
+			modelInfo: {
+				data: [
+					{
+						model_name: 'gpt-6-sol',
+						model_info: {
+							mode: 'responses',
+							supports_function_calling: true,
+							supports_vision: true,
+							max_input_tokens: 922000,
+							max_output_tokens: 128000,
+						},
+					},
+					{ model_name: 'vector-search', model_info: { mode: 'embedding' } },
+					{ model_name: 'not-allowed', model_info: { mode: 'chat' } },
+				],
+			},
+		});
+		try {
+			const headers = { Authorization: 'Bearer test-key' };
+			const ids = ((await (await fetch(`${server.baseUrl}/models`, { headers })).json()) as { data: Array<{ id: string }> }).data.map(
+				(entry) => entry.id,
+			);
+			const info = modelInfoRules(await (await fetch(`${server.baseUrl}/model/info`, { headers })).json(), ids);
+			const offered = ids.filter(
+				(id) => !shouldHide(resolveCapabilities(id, [...ruleChain([]), ...(info.get(id) ? [info.get(id)!] : [])]), true),
+			);
+			assert.deepEqual(offered, ['gpt-6-sol']);
+			assert.equal(info.has('not-allowed'), false);
+			assert.deepEqual(
+				server.requests.map((request) => request.authorization),
+				['Bearer test-key', 'Bearer test-key'],
+			);
+		} finally {
+			await server.close();
+		}
 	});
 
 	test('streams text and a fragmented tool call over real sockets', async () => {

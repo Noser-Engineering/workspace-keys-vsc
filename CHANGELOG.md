@@ -6,6 +6,18 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-28
+
+### Added
+
+- Use LiteLLM `/model/info` metadata for user-declared endpoints to discover
+  capabilities and token limits of new model ids without adding glob rules.
+  Keep `/models` as the model allowlist and preserve local rule overrides.
+- Add fallback capability rules for GPT-6 Astra/Sol/Luna and Claude Opus 5.5,
+  Fable 5/5.1, and Sonnet 5 when LiteLLM metadata is unavailable.
+- Enable GPT-6 Sol and Luna tool calling in fallback rules after verifying
+  Neuron's Chat Completions responses without `reasoning_effort`.
+
 ## [0.1.2] - 2026-09-11
 
 ### Added
