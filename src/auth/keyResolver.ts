@@ -1,11 +1,11 @@
 // Type-only, so the resolution logic — including the reuse guard — stays
 // testable with plain `node --test`.
 import type * as vscode from 'vscode';
-import type { KeyResolution, ProviderConfig, WithheldKey } from '../types';
 import type { ProviderOrigin } from '../config/workspaceConfig';
+import type { KeyResolution, ProviderConfig, WithheldKey } from '../types';
 import { containsEnvRef, envRefNames, interpolateEnv } from './env';
-import { secretName, workspaceHash } from './secretKey';
 import { KeyRegistry, type StoredKey, isRecycled, pathLabel } from './keyRegistry';
+import { secretName, workspaceHash } from './secretKey';
 import { type IdentitySource, birthtimeOf } from './workspaceIdentity';
 
 /**
@@ -52,7 +52,7 @@ export class KeyResolver {
 		private readonly env: Record<string, string | undefined> = process.env,
 		/** Injectable so the guard can be tested without depending on real file timestamps. */
 		private readonly probe: (source: IdentitySource | undefined) => Promise<number | undefined> = birthtimeOf,
-	) {}
+	) { }
 
 	secretNameFor(providerId: string, workspaceKey: string): string {
 		return secretName(providerId, workspaceHash(workspaceKey));
@@ -174,6 +174,36 @@ export class KeyResolver {
 
 	async clear(providerId: string, workspaceKey: string): Promise<void> {
 		await this.forget([this.secretNameFor(providerId, workspaceKey)]);
+	}
+
+	/**
+	 * Keys stored for the same provider in other workspaces, most recently used
+	 * first. Restricted to one provider id on purpose: a key is only ever offered
+	 * back to the endpoint it was issued for.
+	 */
+	reusableKeys(providerId: string, workspaceKey: string): StoredKey[] {
+		const own = this.secretNameFor(providerId, workspaceKey);
+		return this.registry
+			.list()
+			.filter((entry) => entry.providerId === providerId && entry.name !== own)
+			.sort((a, b) => (b.lastUsedAt ?? b.storedAt) - (a.lastUsedAt ?? a.storedAt));
+	}
+
+	/**
+	 * Copies a stored key to this workspace's secret name. The value never leaves
+	 * this class. Returns false when the source secret no longer exists, i.e. the
+	 * index entry was stale.
+	 */
+	async copyFrom(sourceName: string, providerId: string, workspaceKey: string, identityUri?: IdentitySource): Promise<boolean> {
+		if (this.registry.get(sourceName)?.providerId !== providerId) {
+			return false;
+		}
+		const value = await this.secrets.get(sourceName);
+		if (!value) {
+			return false;
+		}
+		await this.store(providerId, workspaceKey, value, identityUri);
+		return true;
 	}
 
 	/**

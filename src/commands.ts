@@ -4,6 +4,7 @@ import { isResolvedKey } from './types';
 import { ConfigReader, type ProviderOrigin, type WorkspaceScope } from './config/workspaceConfig';
 import { deriveProviderId, sanitizeProviderTitle, suggestProviderTitle } from './config/providerDraft';
 import { KeyResolver } from './auth/keyResolver';
+import type { StoredKey } from './auth/keyRegistry';
 import { BaseUrlConsent, originOf } from './security/baseUrlConsent';
 import { validateBaseUrl } from './security/endpointUrl';
 import { WorkspaceKeysChatProvider } from './provider/chatProvider';
@@ -331,21 +332,105 @@ async function setKey(deps: CommandDeps, providerId?: string): Promise<void> {
 		return;
 	}
 
-	const key = await vscode.window.showInputBox({
-		title: `API key for "${provider.label ?? provider.id}"`,
-		prompt: `Stored in SecretStorage for this workspace only. It is not written to settings.`,
-		password: true,
-		ignoreFocusOut: true,
-		validateInput: (value) => (value.trim().length === 0 ? 'The key must not be empty.' : undefined),
-	});
-	if (key === undefined) {
+	// Offered only for endpoints from user settings: a workspace could declare a
+	// known provider id with a different base URL and so collect an existing key.
+	const reusable = origin === 'user' ? deps.keys.reusableKeys(provider.id, scope.workspaceKey) : [];
+	const answer = await askForKey(provider, reusable);
+	if (answer === undefined) {
 		return;
 	}
 
-	await deps.keys.store(provider.id, scope.workspaceKey, key.trim(), scope.identityUri);
-	log().info(`Stored a key for provider "${provider.id}" in this workspace.`);
+	if (answer.kind === 'reuse') {
+		const copied = await deps.keys.copyFrom(answer.entry.name, provider.id, scope.workspaceKey, scope.identityUri);
+		if (!copied) {
+			void vscode.window.showWarningMessage('Workspace Keys: that stored key no longer exists. Enter a new key instead.');
+			return;
+		}
+		log().info(`Reused the stored key of "${answer.entry.label}" for provider "${provider.id}" in this workspace.`);
+	} else {
+		await deps.keys.store(provider.id, scope.workspaceKey, answer.key, scope.identityUri);
+		log().info(`Stored a key for provider "${provider.id}" in this workspace.`);
+	}
 	void vscode.window.showInformationMessage(`Workspace Keys: key for "${provider.label ?? provider.id}" stored for this workspace.`);
 	deps.provider.refresh();
+}
+
+type KeyAnswer = { kind: 'new'; key: string } | { kind: 'reuse'; entry: StoredKey };
+
+/**
+ * Asks for an API key. When keys for the same provider exist in other
+ * workspaces, a title-bar button lets the user pick one of those instead.
+ */
+async function askForKey(provider: ProviderConfig, reusable: readonly StoredKey[]): Promise<KeyAnswer | undefined> {
+	const reuseButton: vscode.QuickInputButton = {
+		iconPath: new vscode.ThemeIcon('history'),
+		tooltip: 'Use a key stored for another workspace',
+	};
+
+	const input = vscode.window.createInputBox();
+	input.title = `API key for "${provider.label ?? provider.id}"`;
+	input.prompt = 'Stored in SecretStorage for this workspace only. It is not written to settings.';
+	input.password = true;
+	input.ignoreFocusOut = true;
+	if (reusable.length > 0) {
+		input.buttons = [reuseButton];
+	}
+
+	return new Promise<KeyAnswer | undefined>((resolve) => {
+		let settled = false;
+		// Opening the list hides the input box; that hide is not a cancellation.
+		let picking = false;
+		const finish = (answer: KeyAnswer | undefined): void => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			input.dispose();
+			resolve(answer);
+		};
+
+		input.onDidChangeValue((value) => {
+			input.validationMessage = value.length > 0 && value.trim().length === 0 ? 'The key must not be empty.' : undefined;
+		});
+		input.onDidAccept(() => {
+			const key = input.value.trim();
+			if (key.length === 0) {
+				input.validationMessage = 'The key must not be empty.';
+				return;
+			}
+			finish({ kind: 'new', key });
+		});
+		input.onDidTriggerButton(async (button) => {
+			if (button !== reuseButton) {
+				return;
+			}
+			const items = reusable.map((entry) => ({
+				label: `$(key) ${entry.label}`,
+				description: entry.providerId,
+				detail: `${entry.adopted ? 'first seen' : 'stored'} ${formatDate(entry.storedAt)}${
+					entry.lastUsedAt ? ` · last used ${formatDate(entry.lastUsedAt)}` : ''
+				}`,
+				entry,
+			}));
+			picking = true;
+			const picked = await vscode.window.showQuickPick(items, {
+				title: `Reuse a stored key for "${provider.label ?? provider.id}"`,
+				placeHolder: 'Select the workspace whose key should be used here',
+			});
+			picking = false;
+			if (picked) {
+				finish({ kind: 'reuse', entry: picked.entry });
+			} else if (!settled) {
+				input.show();
+			}
+		});
+		input.onDidHide(() => {
+			if (!picking) {
+				finish(undefined);
+			}
+		});
+		input.show();
+	});
 }
 
 async function clearKey(deps: CommandDeps, providerId?: string): Promise<void> {

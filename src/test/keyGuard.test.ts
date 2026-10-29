@@ -1,10 +1,10 @@
-import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ProviderConfig } from '../types';
-import { isResolvedKey } from '../types';
+import { beforeEach, describe, test } from 'node:test';
 import { KeyRegistry, type RegistryStore } from '../auth/keyRegistry';
 import { KeyResolver, type KeyScope } from '../auth/keyResolver';
 import { type IdentitySource } from '../auth/workspaceIdentity';
+import type { ProviderConfig } from '../types';
+import { isResolvedKey } from '../types';
 
 class FakeStore implements RegistryStore {
 	private values = new Map<string, unknown>();
@@ -286,6 +286,63 @@ describe('resolution memo', () => {
 		assert.equal(isResolvedKey(await keys.resolve(PROVIDER, SCOPE, 'user')), true);
 		await keys.forget([keys.secretNameFor(PROVIDER.id, WORKSPACE)]);
 		assert.equal(isResolvedKey(await keys.resolve(PROVIDER, SCOPE, 'user')), false);
+	});
+});
+
+describe('reusing a stored key', () => {
+	const OTHER = 'file:///c%3A/workspace/kunde-b/shop';
+	const OTHER_IDENTITY: IdentitySource = { scheme: 'file', fsPath: 'c:\\workspace\\kunde-b\\shop' };
+
+	beforeEach(() => {
+		birthtime = 5_000_000;
+		build();
+	});
+
+	test('offers keys of the same provider from other workspaces only', async () => {
+		await keys.store('openai', OTHER, 'sk-other', OTHER_IDENTITY);
+		await keys.store('anthropic', OTHER, 'sk-different-provider', OTHER_IDENTITY);
+		await keys.store('openai', WORKSPACE, 'sk-own', IDENTITY);
+
+		const offered = keys.reusableKeys('openai', WORKSPACE);
+		assert.deepEqual(
+			offered.map((entry) => entry.name),
+			[keys.secretNameFor('openai', OTHER)],
+		);
+	});
+
+	test('offers nothing when no other workspace has a key', async () => {
+		await keys.store('openai', WORKSPACE, 'sk-own', IDENTITY);
+		assert.deepEqual(keys.reusableKeys('openai', WORKSPACE), []);
+	});
+
+	test('copies the key to this workspace, where it resolves from SecretStorage', async () => {
+		await keys.store('openai', OTHER, 'sk-other', OTHER_IDENTITY);
+		const source = keys.secretNameFor('openai', OTHER);
+
+		assert.equal(await keys.copyFrom(source, 'openai', WORKSPACE, IDENTITY), true);
+
+		const resolved = await keys.resolve(PROVIDER, SCOPE, 'user');
+		assert.equal(isResolvedKey(resolved) && resolved.key, 'sk-other');
+		assert.equal(isResolvedKey(resolved) && resolved.source, 'secret');
+		assert.equal(secrets.entries.get(source), 'sk-other', 'the source key is left in place');
+		assert.equal(keys.storedKeys().length, 2);
+	});
+
+	test('returns false when the source secret no longer exists', async () => {
+		await keys.store('openai', OTHER, 'sk-other', OTHER_IDENTITY);
+		const source = keys.secretNameFor('openai', OTHER);
+		secrets.entries.delete(source);
+
+		assert.equal(await keys.copyFrom(source, 'openai', WORKSPACE, IDENTITY), false);
+		assert.equal(secrets.entries.size, 0);
+	});
+
+	test('refuses to copy a key that belongs to a different provider', async () => {
+		await keys.store('anthropic', OTHER, 'sk-different-provider', OTHER_IDENTITY);
+		const source = keys.secretNameFor('anthropic', OTHER);
+
+		assert.equal(await keys.copyFrom(source, 'openai', WORKSPACE, IDENTITY), false);
+		assert.equal(secrets.entries.has(keys.secretNameFor('openai', WORKSPACE)), false);
 	});
 });
 
